@@ -67,12 +67,12 @@ PluginRegistry (fan-out to all plugins)
 ### Core Components
 
 1. **FilterEngine**: JSON-based rule matching at each layer (CAN, ISOTP, protocol).
-2. **DefsEngine**: JSON-based parameter and enum decoding for protocols.
+2. **diag_defs / DefsEngine**: Shared JSON-based parameter and enum decoding for protocols.
 3. **ISOTPReassembler**: Stateful reassembly of multi-frame CAN messages (ISO 15765-2, standard + extended addressing).
 4. **ProtocolRegistry**: Multi-protocol decoder registry (controlled by `--protocols`):
    - Only registers decoders specified by `--protocols` (default: KWP only)
    - Tries each registered ProtocolDecoder in order on each transport message
-   - KWPDecoder: KWP2000 / ISO 14230. Uses DefsEngine first, falls back to Scapy.
+  - KWPDecoder: KWP2000 / ISO 14230. Uses shared DefsEngine first, falls back to Scapy.
    - UDSDecoder: planned for future implementation
 5. **PluginRegistry**: Fans out all decoded messages to every loaded plugin:
    - Each plugin implements optional callbacks: on_can_message(), on_isotp_message(), on_kwp_message(), etc.
