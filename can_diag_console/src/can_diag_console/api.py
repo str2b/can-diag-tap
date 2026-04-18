@@ -5,6 +5,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from diag_filter import FilterEngine, GenericMessage
+
 from .adapters import AdapterSettings, build_adapter
 from .defs_adapter import DefsParser, build_defs_parser
 from .memory_read import KwpMemoryReader, MemoryReadOptions, MemoryReadResult, export_srec
@@ -30,6 +32,7 @@ class DiagClientConfig:
     defs: str | None = None
     cdt_file: str | None = None
     defs_provider: str = "auto"
+    filter_file: str | None = None
 
 
 class DiagClient:
@@ -58,6 +61,7 @@ class DiagClient:
             cdt_file=config.cdt_file,
             provider=config.defs_provider,
         )
+        self._filter = FilterEngine(config.filter_file, logger_name="cdc.filter")
 
         self._send_lock = threading.Lock()
         self._tp_running = threading.Event()
@@ -105,7 +109,16 @@ class DiagClient:
     def recv(self, timeout: float = 0.2) -> bytes | None:
         if self._transport is None:
             raise RuntimeError("DiagClient is not open.")
-        return self._transport.recv(timeout=timeout)
+
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            response = self._transport.recv(timeout=min(0.2, max(0.01, deadline - time.time())))
+            if response is None:
+                continue
+            if self._should_drop_inbound(response):
+                continue
+            return response
+        return None
 
     def request(
         self,
@@ -189,3 +202,23 @@ class DiagClient:
             deadline = time.time() + self._tp_interval
             while self._tp_running.is_set() and time.time() < deadline:
                 time.sleep(0.05)
+
+    def _should_drop_inbound(self, payload: bytes) -> bool:
+        if not self._filter.rules:
+            return False
+
+        src = self._config.rx_id & 0xFF
+        tgt = self._config.tx_id & 0xFF
+
+        if self._filter.should_drop(GenericMessage("isotp", {"payload": payload})):
+            return True
+
+        kwp_attrs: dict[str, Any] = {
+            "src": src,
+            "tgt": tgt,
+            "payload": payload,
+        }
+        if payload:
+            kwp_attrs["service"] = f"0x{payload[0]:0X}"
+
+        return self._filter.should_drop(GenericMessage("kwp", kwp_attrs))

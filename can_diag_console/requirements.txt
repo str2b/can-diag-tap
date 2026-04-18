@@ -1,4 +1,5 @@
 -e ../diag_defs
+-e ../diag_filter
 python-can>=4.4.0
 can-isotp>=2.0.5
 scapy>=2.5.0

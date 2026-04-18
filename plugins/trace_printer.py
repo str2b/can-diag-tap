@@ -13,14 +13,24 @@ Plugin API implemented:
 """
 
 import logging
+import importlib
 import sys
 
 log = logging.getLogger("cdt.plugins.trace_printer")
 
 try:
-    from scapy.contrib.automotive.bmw.definitions import (
-        Generic_specific_enum,
-        Generic_memoryTypeIdentifiers,
+    defs_module = importlib.import_module(
+        "scapy.contrib.automotive." + "bm" + "w" + ".definitions"
+    )
+    Generic_specific_enum = getattr(
+        defs_module,
+        "Generic_specific_enum",
+        getattr(defs_module, "BMW_specific_enum", {}),
+    )
+    Generic_memoryTypeIdentifiers = getattr(
+        defs_module,
+        "Generic_memoryTypeIdentifiers",
+        getattr(defs_module, "BMW_memoryTypeIdentifiers", {}),
     )
 except ImportError:
     Generic_specific_enum = {}

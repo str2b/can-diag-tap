@@ -51,7 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--isotp-addressing",
         choices=["normal", "extended"],
         default="extended",
-        help="ISO-TP addressing mode (default: extended, common for BMW KWP)",
+        help="ISO-TP addressing mode (default: extended, common for KWP setups)",
     )
     parser.add_argument(
         "--source-addr",
@@ -73,6 +73,10 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["auto", "cdt", "none"],
         default="auto",
         help="Defs parsing provider: auto, none, or deprecated compatibility alias cdt.",
+    )
+    parser.add_argument(
+        "--filter",
+        help="Optional JSON filter configuration (same format as can-diag-trace).",
     )
     parser.add_argument(
         "--run",

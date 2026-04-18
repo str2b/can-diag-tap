@@ -5,10 +5,8 @@ from __future__ import annotations
 import abc
 import argparse
 import importlib.util
-import json
 import logging
 import os
-import re
 import sys
 from dataclasses import dataclass
 from enum import Enum
@@ -20,6 +18,7 @@ from scapy.all import Raw
 from scapy.contrib.automotive.kwp import KWP
 
 from diag_defs import DefsEngine
+from diag_filter import FilterEngine
 
 
 # ---------------------------------------------------------------------------
@@ -152,73 +151,6 @@ class KWPMessage(Message):
             "service": f"0x{self.service_id:0X}",
             "payload": self.data,
         }
-
-
-# ---------------------------------------------------------------------------
-# FilterEngine
-# ---------------------------------------------------------------------------
-
-class FilterEngine:
-    """Loads a JSON filter definition and evaluates frames against its rules."""
-
-    def __init__(self, filter_file: str | None = None):
-        self.mode: str = "whitelist"
-        self.rules: list[dict[str, Any]] = []
-        if not filter_file:
-            return
-        try:
-            with open(filter_file, "r", encoding="utf-8") as f:
-                filter_def: dict[str, Any] = json.load(f)
-            self.mode = filter_def.get("mode", "whitelist").lower()
-            self.rules = filter_def.get("rules", [])
-            logging.getLogger("cdt.filter").info(
-                "Loaded %d filter rules in %s mode.", len(self.rules), self.mode,
-            )
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logging.getLogger("cdt.filter").error("Failed to load filter file %s: %s", filter_file, e)
-            sys.exit(1)
-
-    def should_drop(self, message: Message) -> bool:
-        """Returns True if the message should be discarded according to the filter rules."""
-        if not self.rules:
-            return False
-
-        layer = message.layer
-        layer_rules = [r for r in self.rules if r.get("layer", "").lower() == layer]
-        if not layer_rules:
-            return False
-
-        attrs = message.filter_attrs()
-        rule_matched = False
-        for rule in layer_rules:
-            rule_matches = True
-            for key, expected_val in rule.items():
-                if key == "layer":
-                    continue
-                val = attrs.get(key)
-                if val is None:
-                    rule_matches = False
-                    break
-                if key == "payload":
-                    if not isinstance(val, (bytes, bytearray)):
-                        rule_matches = False
-                        break
-                    if not re.search(str(expected_val), val.hex().upper(), re.IGNORECASE):
-                        rule_matches = False
-                        break
-                else:
-                    str_val = (
-                        f"0X{val:0X}" if isinstance(val, int) else str(val).upper()
-                    )
-                    exp_val_str = str(expected_val).upper()
-                    if str_val != exp_val_str and exp_val_str != str(val):
-                        rule_matches = False
-                        break
-            if rule_matches:
-                rule_matched = True
-                break
-
-        return not rule_matched if self.mode == "whitelist" else rule_matched
 
 
 # ---------------------------------------------------------------------------
@@ -643,7 +575,7 @@ class TraceAnalyzer:
 
     def __init__(self, config: TraceAnalyzer.Config):
         self.config: TraceAnalyzer.Config = config
-        self.filter: FilterEngine = FilterEngine(config.filter_file)
+        self.filter: FilterEngine = FilterEngine(config.filter_file, logger_name="cdt.filter")
         self.reassembler: ISOTPReassembler = ISOTPReassembler(
             ISOTPReassembler.Config(
                 addressing=config.addressing,

@@ -33,7 +33,6 @@ htmlcov/
 .idea/
 
 # Project-specific generated data
-test_input/
-test_output/
+test_*/
 *.log
 *.asc

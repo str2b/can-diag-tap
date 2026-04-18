@@ -6,6 +6,8 @@ import threading
 import time
 from typing import Callable, Any
 
+from diag_filter import FilterEngine, GenericMessage
+
 from .adapters import BusAdapter, build_adapter, settings_from_args
 from .defs_adapter import DefsParser, build_defs_parser
 from .protocols import fmt_hex
@@ -26,6 +28,7 @@ class DiagnosticSession:
             cdt_file=args.cdt_file,
             provider=getattr(args, "defs_provider", "auto"),
         )
+        self._filter = FilterEngine(getattr(args, "filter", None), logger_name="cdc.filter")
 
         self._send_lock = threading.Lock()
         self._trace_lock = threading.Lock()
@@ -219,9 +222,39 @@ class DiagnosticSession:
             if payload is None:
                 continue
 
+            if self._should_drop_inbound(payload):
+                continue
+
             self._inbound_queue.put(payload)
             if not self.trace_output_suppressed():
                 self._emit(self._format_rx(payload))
+
+    def _should_drop_inbound(self, payload: bytes) -> bool:
+        if not self._filter.rules:
+            return False
+
+        src = self._args.rx_id & 0xFF
+        tgt = self._args.tx_id & 0xFF
+
+        isotp_msg = GenericMessage(
+            "isotp",
+            {
+                "payload": payload,
+            },
+        )
+        if self._filter.should_drop(isotp_msg):
+            return True
+
+        kwp_attrs: dict[str, Any] = {
+            "src": src,
+            "tgt": tgt,
+            "payload": payload,
+        }
+        if payload:
+            kwp_attrs["service"] = f"0x{payload[0]:0X}"
+
+        kwp_msg = GenericMessage("kwp", kwp_attrs)
+        return self._filter.should_drop(kwp_msg)
 
     def _drain_inbound_queue(self) -> None:
         while True:

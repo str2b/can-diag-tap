@@ -7,6 +7,48 @@ from can_diag_console.defs_adapter import build_defs_parser
 from diag_defs import DefsEngine
 
 
+def _write_min_defs(tmp_path: Path) -> Path:
+    defs_path = tmp_path / "defs.json"
+    defs_path.write_text(
+        json.dumps(
+            {
+                "services": {
+                    "0x31": {
+                        "name": "StartRoutineByLocalIdentifier",
+                        "args": {
+                            "default": [
+                                {
+                                    "name": "routineLocalIdentifier",
+                                    "length": 1,
+                                    "enum": {"0x02": "clearMemory"},
+                                },
+                                {"name": "memoryAddress3B", "length": 4},
+                                {"name": "memoryType", "length": 1},
+                                {"name": "memoryLen", "length": 4},
+                                {"name": "raw_payload", "length": -1},
+                            ]
+                        },
+                    },
+                    "0x3E": {
+                        "name": "TesterPresent",
+                        "args": {
+                            "default": [
+                                {
+                                    "name": "responseRequired",
+                                    "length": 1,
+                                    "enum": {"0x01": "yes"},
+                                }
+                            ]
+                        },
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    return defs_path
+
+
 def test_defs_engine_prefers_src_tgt_specific_match(tmp_path: Path) -> None:
     defs_path = tmp_path / "defs.json"
     defs_path.write_text(
@@ -40,8 +82,8 @@ def test_defs_engine_prefers_src_tgt_specific_match(tmp_path: Path) -> None:
     assert service_def["src"] == "0x12"
 
 
-def test_defs_engine_decodes_mux_and_raw_payload() -> None:
-    defs_path = Path(__file__).resolve().parents[2] / "test_input" / "kwp_defs.json"
+def test_defs_engine_decodes_mux_and_raw_payload(tmp_path: Path) -> None:
+    defs_path = _write_min_defs(tmp_path)
     engine = DefsEngine(str(defs_path))
 
     decoded = engine.parse_payload(
@@ -58,8 +100,8 @@ def test_defs_engine_decodes_mux_and_raw_payload() -> None:
     assert decoded["params"]["raw_payload"] == b"\xAA"
 
 
-def test_build_defs_parser_uses_shared_engine_and_keeps_cdt_alias() -> None:
-    defs_path = Path(__file__).resolve().parents[2] / "test_input" / "kwp_defs.json"
+def test_build_defs_parser_uses_shared_engine_and_keeps_cdt_alias(tmp_path: Path) -> None:
+    defs_path = _write_min_defs(tmp_path)
 
     parser = build_defs_parser(str(defs_path), cdt_file="ignored.py", provider="cdt")
 
