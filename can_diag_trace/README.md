@@ -21,8 +21,10 @@ It reads CAN traffic, reassembles ISO-TP payloads, decodes configured protocols,
 
 **Live Interface Options (only with `--interface`):**
 
-- `-c`, `--channel <channel>`: CAN channel (required for live interface)
+- `-c`, `--channel <channel>`: CAN channel (required for most interfaces; optional for `gs_usb` to auto-pick first device)
 - `-b`, `--bitrate <rate>`: Bitrate for the selected interface
+
+For `gs_usb` on Windows, ensure WinUSB driver is installed for the adapter and use the bus bitrate expected by your CAN network (commonly `500000`, not `5000000`).
 
 **Diagnostic and Decoding:**
 

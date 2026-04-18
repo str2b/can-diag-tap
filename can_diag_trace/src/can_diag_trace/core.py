@@ -31,6 +31,58 @@ class AddressingMode(Enum):
     EXTENDED = "extended"
 
 
+def _enable_pyusb_libusb_backend() -> None:
+    """Ensure PyUSB can locate a libusb DLL on Windows for gs_usb access."""
+    try:
+        import libusb_package  # type: ignore
+    except Exception:
+        return
+
+    try:
+        dll_path = Path(libusb_package.get_library_path())
+    except Exception:
+        return
+
+    if not dll_path.exists():
+        return
+
+    dll_dir = str(dll_path.parent)
+    path = os.environ.get("PATH", "")
+    parts = path.split(";") if path else []
+    if dll_dir not in parts:
+        os.environ["PATH"] = f"{dll_dir};{path}" if path else dll_dir
+
+
+def _resolve_live_channel(interface: str, channel: str | None) -> str | int:
+    """Resolve the python-can channel, with gs_usb auto-discovery support."""
+    if interface != "gs_usb":
+        if channel is None:
+            raise ValueError("--channel is required when using --interface.")
+        return channel
+
+    _enable_pyusb_libusb_backend()
+
+    if channel is not None:
+        try:
+            return int(channel)
+        except (TypeError, ValueError):
+            return channel
+
+    try:
+        from gs_usb.gs_usb import GsUsb  # type: ignore
+    except Exception as exc:
+        raise RuntimeError(
+            "gs_usb requires gs-usb/pyusb/libusb-package packages in the active environment."
+        ) from exc
+
+    devices = list(GsUsb.scan())
+    if not devices:
+        raise RuntimeError(
+            "No gs_usb devices detected. Check USB connection and WinUSB driver."
+        )
+    return 0
+
+
 # ---------------------------------------------------------------------------
 # Type aliases and structured dicts
 # ---------------------------------------------------------------------------
@@ -649,14 +701,36 @@ class TraceAnalyzer:
     def _open_source(self) -> can.Bus | can.ASCReader | can.BLFReader:
         """Open and return a CAN message iterator (live bus or trace file reader)."""
         if self.config.interface:
+            channel = _resolve_live_channel(self.config.interface, self.config.channel)
+            if (
+                self.config.interface == "gs_usb"
+                and self.config.bitrate is not None
+                and self.config.bitrate > 1_000_000
+            ):
+                raise ValueError(
+                    "Unsupported gs_usb bitrate. gs_usb in this tool uses nominal CAN bitrate "
+                    "(typically up to 1000000)."
+                )
             logging.getLogger("cdt.analyzer").info(
                 "Opening LIVE interface '%s' on channel '%s'...",
-                self.config.interface, self.config.channel,
+                self.config.interface, channel,
             )
-            kwargs = {"interface": self.config.interface, "channel": self.config.channel}
+            kwargs = {"interface": self.config.interface, "channel": channel}
             if self.config.bitrate:
                 kwargs["bitrate"] = self.config.bitrate
-            return can.Bus(**kwargs)
+            try:
+                return can.Bus(**kwargs)
+            except ValueError as exc:
+                # python-can/gs_usb raises this when bitrate cannot be represented by device timing.
+                if (
+                    self.config.interface == "gs_usb"
+                    and "No suitable bit timings found" in str(exc)
+                ):
+                    raise ValueError(
+                        "Unsupported gs_usb bitrate. Use a nominal CAN bitrate supported by your adapter/bus "
+                        "(commonly 125000, 250000, 500000, or 1000000)."
+                    ) from exc
+                raise
 
         if not self.config.trace_file:
             raise ValueError("Specify a trace_file or a live --interface (with --channel).")
@@ -785,7 +859,7 @@ def main():
     args = arg_parser.parse_args()
 
     if args.interface:
-        if not args.channel:
+        if not args.channel and args.interface != "gs_usb":
             arg_parser.error("--channel is required when using --interface.")
     else:
         if args.channel:
