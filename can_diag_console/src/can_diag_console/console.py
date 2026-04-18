@@ -5,7 +5,6 @@ import threading
 
 from .commands import CommandProcessor
 from .extensions import load_command_plugins
-from .protocols import parse_hex_bytes
 from .session import DiagnosticSession
 
 
@@ -35,7 +34,7 @@ class DiagnosticConsole:
         self._running = True
         args = self._session.args
 
-        self._print("CAN Diagnostic Console ready. Enter hex bytes, or :help")
+        self._print("CAN Diagnostic Console ready. Enter :help for available commands")
         line = (
             f"adapter={args.adapter} interface={args.interface} "
             f"channel={args.channel} bitrate={args.bitrate} "
@@ -64,11 +63,7 @@ class DiagnosticConsole:
                         self._print(f"Error: {exc}")
                     continue
 
-                try:
-                    payload = parse_hex_bytes(line)
-                    self._session.send(payload)
-                except Exception as exc:  # pylint: disable=broad-except
-                    self._print(f"Error: {exc}")
+                self._print("Input must be a command (start with ':'). Use :help")
         except KeyboardInterrupt:
             self._print("Interrupted.")
         finally:
@@ -93,12 +88,8 @@ class DiagnosticConsole:
                         self._print(f"Error: {exc}")
                         exit_code = 1
                 else:
-                    try:
-                        payload = parse_hex_bytes(cmd)
-                        self._session.send(payload)
-                    except Exception as exc:  # pylint: disable=broad-except
-                        self._print(f"Error: {exc}")
-                        exit_code = 1
+                    self._print("Error: non-command input is not allowed. Use :help")
+                    exit_code = 1
         except KeyboardInterrupt:
             self._print("Interrupted.")
             exit_code = 1

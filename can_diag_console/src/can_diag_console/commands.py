@@ -94,7 +94,7 @@ class CommandProcessor:
         self.register_command("proto", self._handle_proto)
         self.register_command("defs", self._handle_defs)
         self.register_command("nodefs", self._handle_nodefs)
-        self.register_command("kwp", self._handle_kwp)
+        self.register_command("tp", self._handle_tp)
         self.register_command("kwp-tp", self._handle_kwp_tester_present)
         self.register_command("kwp-rmem", self._handle_kwp_read_memory)
 
@@ -131,9 +131,6 @@ class CommandProcessor:
         lines = [
             "usage: :<command> [arguments]",
             "",
-            "positional input:",
-            "  <hex-bytes>                              send raw bytes (e.g. '3E 01')",
-            "",
             "commands:",
             "  :help, :h                                show this help message",
             "  :quit, :q, :exit                         disconnect and exit",
@@ -143,7 +140,7 @@ class CommandProcessor:
             "  :rx <id>                                 set ECU-to-tester CAN ID (hex)",
             "  :defs <path>                             load service definitions JSON",
             "  :nodefs                                  unload service definitions",
-            "  :kwp <hex-bytes>                         send a raw KWP2000 / UDS request",
+            "  :tp <hex-bytes>                          send raw transport payload bytes",
             "  :kwp-tp <subcommand> [...]               manage tester-present keepalive",
             "  :kwp-rmem <start> <end> [...]            read ECU memory range",
             "",
@@ -225,14 +222,14 @@ class CommandProcessor:
         self._emit("Definitions parsing disabled.")
         return True
 
-    def _handle_kwp(self, args: str) -> bool:
+    def _handle_tp(self, args: str) -> bool:
         payload_text = args.strip()
         if not payload_text:
-            self._emit("Usage: :kwp <hex bytes>")
+            self._emit("Usage: :tp <hex bytes>")
             return True
 
         payload = parse_hex_bytes(payload_text)
-        self._session.send(payload, tag="KWP")
+        self._session.send(payload, tag="TP")
         return True
 
     def _handle_kwp_tester_present(self, args: str) -> bool:

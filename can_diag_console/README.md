@@ -53,14 +53,14 @@ can-diag-console --adapter python-can --interface gs_usb --adapter-options '{"di
 
 Interactive usage:
 
-- Enter raw bytes: `10 81`, `0x10 0x81`, or `1081`
+- Input is command-driven; all actions must start with `:`
 - Output formatting is trace-oriented and defs-aware for both TX and RX lines:
   - `[timestamp] DIR [src->tgt | length] [service | decoded params]`
 - Built-in commands:
   - `:help`
   - `:quit`
   - `:businfo`
-  - `:kwp <hex bytes>`
+  - `:tp <hex bytes>`
   - `:kwp-tp <on|off|status|toggle> [interval_s] [hex bytes]`
   - `:kwp-rmem <start> <end> [chunk=0xF0] [type=0x00] [timeout=1.0] [srec=<path>]`
   - `:proto kwp2000|uds`
