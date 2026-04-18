@@ -1,5 +1,38 @@
+# Environments
 .venv/
+**/.venv/
+.python-version
+
+# Python cache / bytecode
 __pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Packaging / build artifacts
+build/
+dist/
+**/build/
+**/dist/
+*.egg-info/
+**/*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Test and tooling caches
+.pytest_cache/
+**/.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Editor noise
+.vscode/
+.idea/
+
+# Project-specific generated data
 test_input/
 test_output/
 *.log
