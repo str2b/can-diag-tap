@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "can-diag-trace"
+version = "0.1.0"
+description = "CAN diagnostic trace analyzer with plugin-based protocol decoding"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "diag-defs>=0.1.0",
+  "python-can>=4.3.0",
+  "scapy>=2.5.0",
+  "hexrec>=0.5.1",
+]
+
+[project.scripts]
+can-diag-trace = "can_diag_trace.__main__:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

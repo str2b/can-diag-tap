@@ -1,4 +1,4 @@
-"""CDT - CAN Diagnostic Tap. A modular streaming pipeline for CAN/ISOTP diagnostic analysis."""
+"""CAN Diagnostic Trace. A modular streaming pipeline for CAN/ISOTP diagnostic analysis."""
 
 from __future__ import annotations
 
