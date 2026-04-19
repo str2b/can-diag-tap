@@ -4,6 +4,7 @@ import sys
 import time
 from typing import Callable
 
+from .auth_oem1 import AuthRunResult, KwpAuthOem1Config, KwpAuthOem1Runner
 from .memory_read import KwpMemoryReader, MemoryReadOptions, export_srec
 from .protocols import DiagProtocol, parse_hex_bytes, fmt_hex
 from .session import DiagnosticSession
@@ -97,6 +98,7 @@ class CommandProcessor:
         self.register_command("tp", self._handle_tp)
         self.register_command("kwp-tp", self._handle_kwp_tester_present)
         self.register_command("kwp-rmem", self._handle_kwp_read_memory)
+        self.register_command("kwp-auth-sk", self._handle_kwp_auth_sk)
 
     def execute(self, line: str) -> bool:
         cmd = line.strip()
@@ -143,6 +145,7 @@ class CommandProcessor:
             "  :tp <hex-bytes>                          send raw transport payload bytes",
             "  :kwp-tp <subcommand> [...]               manage tester-present keepalive",
             "  :kwp-rmem <start> <end> [...]            read ECU memory range",
+            "  :kwp-auth-sk [seed1=<hex>] [...]          run KWP seed-key auth flow",
             "",
             ":kwp-tp subcommands:",
             "  on [<interval_s>] [<hex-bytes>]   start tester-present  (default: 2.0 s, payload '3E 01')",
@@ -157,6 +160,13 @@ class CommandProcessor:
             "  [type=<byte>]             memory type byte             (default: 0x00)",
             "  [timeout=<seconds>]       per-request timeout          (default: 1.0)",
             "  [srec=<path>]             save result as Motorola S-record file (enables quiet/progress mode)",
+            "",
+            ":kwp-auth-sk options:",
+            f"  seed1=<hex>               challenge request seed1        (default: {KwpAuthOem1Config().user_magic.hex().upper()})",
+            "  retries=<n>               release-auth retry count      (default: 3)",
+            "  delay=<seconds>           delay between retries         (default: 2.0)",
+            "  timeout=<seconds>         timeout per request           (default: 2.0)",
+            "  prompt cancel             type abort/cancel/:q (or Ctrl+C) at key prompt",
         ]
         for line in lines:
             self._emit(line)
@@ -370,4 +380,64 @@ class CommandProcessor:
             out_path = export_srec(result.chunks, srec_path)
             self._emit(f"[memread] srec={out_path}")
 
+        return True
+
+    def _handle_kwp_auth_sk(self, args: str) -> bool:
+        retries = 3
+        delay = 2.0
+        timeout = 2.0
+        seed1: bytes | None = None
+
+        for token in args.split():
+            low = token.lower()
+            try:
+                if low.startswith("seed1="):
+                    seed1 = parse_hex_bytes(token.split("=", 1)[1])
+                elif low.startswith("retries="):
+                    retries = int(token.split("=", 1)[1], 0)
+                elif low.startswith("delay="):
+                    delay = float(token.split("=", 1)[1])
+                elif low.startswith("timeout="):
+                    timeout = float(token.split("=", 1)[1])
+                else:
+                    self._emit(
+                        "Usage: :kwp-auth-sk [seed1=<hex>] [retries=<n>] [delay=<seconds>] [timeout=<seconds>]"
+                    )
+                    self._emit("Key payload is entered interactively after ECU challenge is read.")
+                    return True
+            except Exception as exc:  # pylint: disable=broad-except
+                self._emit(f"Invalid option value: {exc}")
+                return True
+
+        if seed1 is not None and len(seed1) != 4:
+            self._emit("Usage error: seed1 must be exactly 4 bytes")
+            return True
+
+        cfg = KwpAuthOem1Config(
+            **(dict(user_magic=seed1) if seed1 is not None else {}),
+            # remaining fields always explicit
+            request_timeout=max(0.1, timeout),
+            release_retries=max(1, retries),
+            release_retry_delay=max(0.0, delay),
+        )
+
+        runner = KwpAuthOem1Runner(
+            request_fn=lambda payload, req_timeout, matcher: self._session.request(
+                payload,
+                timeout=req_timeout,
+                matcher=matcher,
+            ),
+            emit=self._emit,
+            prompt_input=input,
+            sleep_fn=time.sleep,
+            config=cfg,
+        )
+
+        result = runner.run()
+        if result == AuthRunResult.SUCCESS:
+            self._emit("[kwp-auth-sk] completed")
+        elif result == AuthRunResult.ABORTED:
+            self._emit("[kwp-auth-sk] aborted")
+        else:
+            self._emit("[kwp-auth-sk] failed")
         return True

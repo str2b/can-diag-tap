@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import threading
 
 from .commands import CommandProcessor
 from .extensions import load_command_plugins
 from .session import DiagnosticSession
+
+
+LOGGER = logging.getLogger("cdc.console")
 
 
 class DiagnosticConsole:
@@ -28,7 +32,7 @@ class DiagnosticConsole:
 
     def _print(self, line: str) -> None:
         with self._stdout_lock:
-            print(line, flush=True)
+            LOGGER.info(line)
 
     def run(self) -> int:
         self._running = True

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 
 from .adapters import register_adapter
@@ -88,6 +89,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(name)s] %(message)s",
+        stream=sys.stderr,
+    )
+
     args = build_parser().parse_args()
 
     if args.adapter_plugin:

@@ -10,6 +10,7 @@ class _FakeSession:
         self.tp = {"enabled": False, "interval": 2.0, "payload": bytes([0x3E, 0x00])}
         self.args = Namespace()
         self.requests = []
+        self.scripted_responses = []
 
     def bus_info(self):
         return {"adapter": "python-can"}
@@ -34,6 +35,11 @@ class _FakeSession:
 
     def request(self, payload: bytes, *, timeout: float = 1.0, matcher=None):
         self.requests.append((payload, timeout))
+        if self.scripted_responses:
+            resp = self.scripted_responses.pop(0)
+            if matcher is None or matcher(resp):
+                return resp
+            return None
         resp = bytes([0x63]) + bytes([0x00] * payload[-1])
         if matcher is None or matcher(resp):
             return resp
@@ -104,3 +110,82 @@ def test_kwp_rmem_command_requests_blocks() -> None:
     # Two requests of size 4: [0x1000..0x1004), [0x1004..0x1008)
     assert len(sess.requests) == 2
     assert sess.requests[0][0][:1] == bytes([0x23])
+
+
+def test_kwp_auth_sk_command_prompts_for_key(monkeypatch) -> None:
+    out = []
+    sess = _FakeSession()
+    sess.scripted_responses = [
+        bytes([0x5A, 0x89, 0x33, 0x32, 0x31]),
+        bytes([0x71, 0x07, 0x66, 0xD0, 0xFE, 0xF9, 0x91, 0xCB, 0x65, 0xC7]),
+        bytes([0x71, 0x08, 0x01]),
+    ]
+
+    proc = CommandProcessor(
+        session=sess,
+        emit=out.append,
+        stop_console=lambda: None,
+    )
+
+    monkeypatch.setattr("builtins.input", lambda _prompt: "00112233445566778899AABBCCDDEEFF")
+
+    assert (
+        proc.execute(":kwp-auth-sk retries=1 delay=0 timeout=0.1")
+        is True
+    )
+
+    assert sess.requests[0][0] == bytes([0x1A, 0x89])
+    assert sess.requests[1][0] == bytes([0x31, 0x07, 0x03, 0x43, 0x44, 0x43, 0x31])
+    assert sess.requests[2][0][:6] == bytes([0x31, 0x08, 0x00, 0x00, 0x00, 0x10])
+    assert len(sess.requests) == 3
+    assert not any(req[0] == bytes([0x10, 0x85]) for req in sess.requests)
+    assert any(
+        "seeds seed1=43444331 seed2=89333231 seed3=66D0FEF991CB65C7" in line
+        for line in out
+    )
+    assert any("[kwp-auth-sk] completed" in line for line in out)
+
+
+def test_kwp_auth_sk_command_accepts_custom_seed1(monkeypatch) -> None:
+    out = []
+    sess = _FakeSession()
+    sess.scripted_responses = [
+        bytes([0x5A, 0x89, 0xDE, 0xAD, 0xBE, 0xEF]),
+        bytes([0x71, 0x07, 0x01, 0x02, 0x03, 0x04]),
+        bytes([0x71, 0x08, 0x01]),
+    ]
+
+    proc = CommandProcessor(
+        session=sess,
+        emit=out.append,
+        stop_console=lambda: None,
+    )
+
+    monkeypatch.setattr("builtins.input", lambda _prompt: "00112233445566778899AABBCCDDEEFF")
+
+    assert proc.execute(":kwp-auth-sk seed1=A1B2C3D4 retries=1 delay=0 timeout=0.1") is True
+    assert sess.requests[1][0] == bytes([0x31, 0x07, 0x03, 0xA1, 0xB2, 0xC3, 0xD4])
+    assert any("seeds seed1=A1B2C3D4" in line for line in out)
+
+
+def test_kwp_auth_sk_command_can_abort_at_key_prompt(monkeypatch) -> None:
+    out = []
+    sess = _FakeSession()
+    sess.scripted_responses = [
+        bytes([0x5A, 0x89, 0xAA, 0xBB, 0xCC, 0xDD]),
+        bytes([0x71, 0x07, 0x11, 0x22, 0x33, 0x44]),
+    ]
+
+    proc = CommandProcessor(
+        session=sess,
+        emit=out.append,
+        stop_console=lambda: None,
+    )
+
+    monkeypatch.setattr("builtins.input", lambda _prompt: "abort")
+
+    assert proc.execute(":kwp-auth-sk retries=1 delay=0 timeout=0.1") is True
+    assert len(sess.requests) == 2
+    assert not any(req[0][:2] == bytes([0x31, 0x08]) for req in sess.requests)
+    assert any("[kwp-auth-sk] aborted" in line for line in out)
+    assert not any("[kwp-auth-sk] failed" in line for line in out)

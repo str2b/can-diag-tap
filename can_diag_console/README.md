@@ -63,11 +63,24 @@ Interactive usage:
   - `:tp <hex bytes>`
   - `:kwp-tp <on|off|status|toggle> [interval_s] [hex bytes]`
   - `:kwp-rmem <start> <end> [chunk=0xF0] [type=0x00] [timeout=1.0] [srec=<path>]`
+  - `:kwp-auth-sk [seed1=43444331] [retries=3] [delay=2.0] [timeout=2.0]`
   - `:proto kwp2000|uds`
   - `:tx 0x6F1`
   - `:rx 0x615`
   - `:defs <path>`
   - `:nodefs`
+
+`kwp-auth-sk` runs a KWP seed-key authentication flow:
+
+- reads ECU serial via `1A 89`
+- computes and prints seed values:
+  - `seed1`: challenge request seed (default `43 44 43 31`, overridable via `seed1=<hex>`)
+  - `seed2`: last 4 bytes from ECU identification response (`1A 89` response)
+  - `seed3`: challenge bytes returned from `31 07`
+- requests auth challenge via `31 07 03 <seed1>`
+- asks user for externally computed key payload based on the received challenge
+  - at the key prompt, type `abort`, `cancel`, `:q`, `:quit`, `:exit` (or press `Ctrl+C`) to return to command entry
+- sends release authentication via `31 08 00 00 00 10 <key-payload>` (with retry support)
 
 Notes:
 
