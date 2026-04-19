@@ -7,6 +7,7 @@ import argparse
 import importlib.util
 import logging
 import os
+import struct
 import sys
 from dataclasses import dataclass
 from enum import Enum
@@ -692,11 +693,39 @@ class TraceAnalyzer:
 
         except KeyboardInterrupt:
             logging.getLogger("cdt.analyzer").info("Capture interrupted by user.")
+        except struct.error as exc:
+            if self.config.interface == "gs_usb" and "buffer of 24 bytes" in str(exc):
+                raise RuntimeError(
+                    "gs_usb frame unpack failed (short USB frame). "
+                    "This is commonly caused by hardware timestamps in some gs_usb/python-can combinations. "
+                    "The tool now disables gs_usb hardware timestamps by default; "
+                    "if this persists, reconnect adapter and ensure WinUSB/libusb are configured."
+                ) from exc
+            raise
+        finally:
+            self._close_source(source_reader)
 
         logging.getLogger("cdt.analyzer").info(
             "Processed %d CAN frames, yielding %d ISOTPs and %d protocol messages (after filtering).",
             self.can_count, self.isotp_count, self.protocol_count,
         )
+
+    @staticmethod
+    def _close_source(source_reader: can.Bus | can.ASCReader | can.BLFReader) -> None:
+        """Close/shutdown source reader if supported to avoid destructor-time errors."""
+        shutdown_fn = getattr(source_reader, "shutdown", None)
+        if callable(shutdown_fn):
+            try:
+                shutdown_fn()
+            except Exception:
+                pass
+
+        close_fn = getattr(source_reader, "close", None)
+        if callable(close_fn):
+            try:
+                close_fn()
+            except Exception:
+                pass
 
     def _open_source(self) -> can.Bus | can.ASCReader | can.BLFReader:
         """Open and return a CAN message iterator (live bus or trace file reader)."""
@@ -718,6 +747,9 @@ class TraceAnalyzer:
             kwargs = {"interface": self.config.interface, "channel": channel}
             if self.config.bitrate:
                 kwargs["bitrate"] = self.config.bitrate
+            if self.config.interface == "gs_usb":
+                # Avoid known short-frame unpack failures on some gs_usb setups.
+                kwargs.setdefault("disable_hw_timestamps", True)
             try:
                 return can.Bus(**kwargs)
             except ValueError as exc:
