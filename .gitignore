@@ -36,3 +36,6 @@ htmlcov/
 test_*/
 *.log
 *.asc
+
+plugins_private/
+tmp/
