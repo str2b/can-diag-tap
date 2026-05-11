@@ -20,7 +20,7 @@ Definitions and filtering references:
 
 ## User Documentation
 
-Quick start:
+### Quick Start
 
 ```sh
 can-diag-console --interface pcan --channel PCAN_USBBUS1 --bitrate 500000 --tx-id 0x6F1 --rx-id 0x615 --defs ../examples/kwp_defs_demo.json
@@ -50,50 +50,69 @@ You can override with:
 can-diag-console --adapter python-can --interface gs_usb --adapter-options '{"disable_hw_timestamps": false}' --tx-id 0x6F1 --rx-id 0x612
 ```
 
-Interactive usage:
+### Interactive Commands
 
 - Input is command-driven; all actions must start with `:`
 - Output formatting is trace-oriented and defs-aware for both TX and RX lines:
   - `[timestamp] DIR [src->tgt | length] [service | decoded params]`
-- Built-in commands:
-  - `:help`
-  - `:quit`
-  - `:businfo`
-  - `:tp <hex bytes>`
-  - `:kwp-tp <on|off|status|toggle> [interval_s] [hex bytes]`
-  - `:kwp-rmem <start> <end> [chunk=0xF0] [type=0x00] [timeout=1.0] [srec=<path>]`
-  - `:kwp-auth-sk [seed1=43444331] [retries=3] [delay=2.0] [timeout=2.0] [keyscript=<path>]`
-  - `:tx 0x6F1`
-  - `:rx 0x615`
-  - `:defs <path>`
-  - `:nodefs`
 
+Built-in commands:
 
-`kwp-auth-sk` runs a KWP seed-key authentication flow:
+| Command | Description |
+|---|---|
+| `:help` | Show available commands |
+| `:quit` | Exit the console |
+| `:businfo` | Print CAN bus and adapter info |
+| `:tp <hex bytes>` | Send a raw ISO-TP request and print the response |
+| `:kwp-tp <on\|off\|status\|toggle> [interval_s] [hex bytes]` | Manage periodic tester present |
+| `:kwp-rmem <start> <end> [chunk=0xF0] [type=0x00] [timeout=1.0] [srec=<path>]` | Read ECU memory over KWP (`0x23`) |
+| `:kwp-auth-sk [seed1=43444331] [retries=3] [delay=2.0] [timeout=2.0] [keyscript=<path>]` | Run KWP seed-key authentication |
+| `:tx <id>` | Change the TX CAN ID |
+| `:rx <id>` | Change the RX CAN ID |
+| `:defs <path>` | Load a diagnostic definitions JSON |
+| `:nodefs` | Unload the current definitions |
 
-- reads ECU serial via `1A 89`
-- computes and prints seed values:
+#### :kwp-rmem
+
+Reads ECU memory using KWP2000 `ReadMemoryByAddress` (`0x23`):
+
+- Splits the address range into chunks (default `0xF0` bytes per request)
+- If a negative response is received, recursively bisects the range to isolate unreadable addresses
+- Continues reading remaining addresses; optionally exports all readable chunks to SREC using `hexrec`
+
+Example:
+
+```text
+:kwp-rmem 0x80000000 0x80000EFF chunk=0xF0 timeout=1.0 srec=./dump/live.srec
+```
+
+#### :kwp-auth-sk
+
+Runs a KWP seed-key authentication flow:
+
+- Reads ECU serial via `1A 89`
+- Computes and prints seed values:
   - `seed1`: challenge request seed (default `43 44 43 31`, overridable via `seed1=<hex>`)
   - `seed2`: last 4 bytes from ECU identification response (`1A 89` response)
   - `seed3`: challenge bytes returned from `31 07`
-- requests auth challenge via `31 07 03 <seed1>`
-- asks user for externally computed key payload based on the received challenge
-  - at the key prompt, type `abort`, `cancel`, `:q`, `:quit`, `:exit` (or press `Ctrl+C`) to return to command entry
-- optional automation via `keyscript=<path>` (script is called with `--s1/--s2/--s3` hex seeds and prints key hex)
-- sends release authentication via `31 08 00 00 00 10 <key-payload>` (with retry support)
+- Requests auth challenge via `31 07 03 <seed1>`
+- Asks user for externally computed key payload based on the received challenge
+  - At the key prompt, type `abort`, `cancel`, `:q`, `:quit`, `:exit` (or press `Ctrl+C`) to return to command entry
+- Optional automation via `keyscript=<path>` (script is called with `--s1/--s2/--s3` hex seeds and prints key hex)
+- Sends release authentication via `31 08 00 00 00 10 <key-payload>` (with retry support)
 
-Notes:
+### Notes
 
 - Transport uses ISO-TP (`can-isotp`).
 - `--adapter kdcan` currently exposes the extension boundary but requires wiring your concrete K/DCAN backend driver in `adapters.py`.
 - If `--channel` is omitted with `--adapter python-can --interface gs_usb`, the first detected gs_usb channel is used.
 
-### Windows driver note for gs_usb
+### Windows Driver Note for gs_usb
 
 - Keep the device bound to `WinUSB` in Device Manager/Zadig.
-- In addition, python `gs_usb` needs a userspace `libusb` DLL. This project now includes `libusb-package` and auto-wires it at runtime.
+- Python `gs_usb` needs a userspace `libusb` DLL. This project includes `libusb-package` and auto-wires it at runtime.
 
-## Quick Dev Intro
+## Development Setup
 
 ```sh
 cd can_diag_console
@@ -141,15 +160,3 @@ Main API methods:
 - `decode(payload)` (when defs are configured)
 - `start_tester_present(interval, payload)` / `stop_tester_present()`
 - `read_memory(start, end, chunk_size=0xF0, memory_type=0x00, timeout=1.0, srec_path=None)`
-
-Read memory helper notes:
-
-- Splits reads into chunked requests (`0x23`), default chunk `0xF0`
-- If negative response occurs, recursively splits (binary-search style) to isolate protected addresses
-- Continues reading other addresses and optionally exports readable chunks to SREC using `hexrec`
-
-Example command:
-
-```text
-:kwp-rmem 0x80000000 0x80000EFF chunk=0xF0 timeout=1.0 srec=./dump/live.srec
-```
