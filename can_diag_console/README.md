@@ -20,6 +20,26 @@ Definitions and filtering references:
 
 ## User Documentation
 
+### CLI Arguments
+
+| Argument | Default | Description |
+|---|---|---|
+| `--tx-id` | *(required)* | Tester-to-ECU CAN frame ID |
+| `--rx-id` | *(required)* | ECU-to-Tester CAN frame ID |
+| `--adapter` | `python-can` | Hardware adapter backend (`python-can`, `kdcan`) |
+| `--interface` | `gs_usb` | python-can interface (e.g. `gs_usb`, `pcan`, `vector`, `socketcan`) |
+| `--channel` | *(auto for gs_usb)* | Interface channel (e.g. `0`, `PCAN_USBBUS1`, `can0`) |
+| `--bitrate` | `500000` | CAN bitrate in bit/s |
+| `--isotp-addressing` | `extended` | ISO-TP addressing mode (`normal` or `extended`) |
+| `--source-addr` | low byte of `--tx-id` | ISO-TP extended-address source byte |
+| `--target-addr` | low byte of `--rx-id` | ISO-TP extended-address target byte |
+| `--defs` | | Path to JSON diagnostic definitions file (`diag_defs`-compatible) |
+| `--filter` | | Path to JSON filter file (`diag_filter`-compatible) |
+| `--run CMD [CMD ...]` | | Run one or more commands non-interactively and exit |
+| `--adapter-options` | | JSON object with adapter-specific settings |
+| `--adapter-plugin` | | Adapter plugin module/path (repeatable); must export `register_adapters(register_adapter)` |
+| `--command-plugin` | | Command plugin module/path (repeatable); must export `register_commands(processor)` |
+
 ### Quick Start
 
 ```sh
