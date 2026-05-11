@@ -1,6 +1,4 @@
 -e ./diag_defs
 -e ./diag_filter
 -e ./can_diag_trace
-python-can>=4.3.0
-scapy>=2.5.0
-hexrec>=0.5.1
+-e ./can_diag_console
