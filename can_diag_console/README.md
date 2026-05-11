@@ -8,7 +8,6 @@ It supports:
 
 - Sending raw diagnostic bytes
 - Receiving asynchronous responses
-- Protocol modes: `kwp2000`, `uds`
 - Optional parsing of diagnostic definitions JSON via shared `diag_defs.DefsEngine`
 - Optional payload filtering via `--filter` (shared `diag_filter` rules)
 - Adapter boundary for backend extensibility (`python-can`, `kdcan` hook)
@@ -24,19 +23,19 @@ Definitions and filtering references:
 Quick start:
 
 ```sh
-can-diag-console --interface pcan --channel PCAN_USBBUS1 --bitrate 500000 --protocol uds --tx-id 0x6F1 --rx-id 0x615 --defs ../examples/kwp_defs_demo.json
+can-diag-console --interface pcan --channel PCAN_USBBUS1 --bitrate 500000 --tx-id 0x6F1 --rx-id 0x615 --defs ../examples/kwp_defs_demo.json
 ```
 
 `gs_usb` with auto channel:
 
 ```sh
-can-diag-console --adapter python-can --interface gs_usb --bitrate 500000 --protocol uds --tx-id 0x6F1 --rx-id 0x615 --defs ../examples/kwp_defs_demo.json
+can-diag-console --adapter python-can --interface gs_usb --bitrate 500000 --tx-id 0x6F1 --rx-id 0x615 --defs ../examples/kwp_defs_demo.json
 ```
 
 Filtering is optional and uses the same JSON format as the tracer:
 
 ```sh
-can-diag-console --interface pcan --channel PCAN_USBBUS1 --bitrate 500000 --protocol uds --tx-id 0x6F1 --rx-id 0x615 --defs ../examples/kwp_defs_demo.json --filter ../examples/filter_demo.json
+can-diag-console --interface pcan --channel PCAN_USBBUS1 --bitrate 500000 --tx-id 0x6F1 --rx-id 0x615 --defs ../examples/kwp_defs_demo.json --filter ../examples/filter_demo.json
 ```
 
 If `--source-addr`/`--target-addr` are omitted in extended mode, defaults are derived from ID low bytes:
@@ -48,7 +47,7 @@ HW timestamps are disabled by default for gs_usb in this project.
 You can override with:
 
 ```sh
-can-diag-console --adapter python-can --interface gs_usb --adapter-options '{"disable_hw_timestamps": false}' --protocol uds --tx-id 0x6F1 --rx-id 0x612
+can-diag-console --adapter python-can --interface gs_usb --adapter-options '{"disable_hw_timestamps": false}' --tx-id 0x6F1 --rx-id 0x612
 ```
 
 Interactive usage:
@@ -63,12 +62,12 @@ Interactive usage:
   - `:tp <hex bytes>`
   - `:kwp-tp <on|off|status|toggle> [interval_s] [hex bytes]`
   - `:kwp-rmem <start> <end> [chunk=0xF0] [type=0x00] [timeout=1.0] [srec=<path>]`
-  - `:kwp-auth-sk [seed1=43444331] [retries=3] [delay=2.0] [timeout=2.0]`
-  - `:proto kwp2000|uds`
+  - `:kwp-auth-sk [seed1=43444331] [retries=3] [delay=2.0] [timeout=2.0] [keyscript=<path>]`
   - `:tx 0x6F1`
   - `:rx 0x615`
   - `:defs <path>`
   - `:nodefs`
+
 
 `kwp-auth-sk` runs a KWP seed-key authentication flow:
 
@@ -80,11 +79,12 @@ Interactive usage:
 - requests auth challenge via `31 07 03 <seed1>`
 - asks user for externally computed key payload based on the received challenge
   - at the key prompt, type `abort`, `cancel`, `:q`, `:quit`, `:exit` (or press `Ctrl+C`) to return to command entry
+- optional automation via `keyscript=<path>` (script is called with `--s1/--s2/--s3` hex seeds and prints key hex)
 - sends release authentication via `31 08 00 00 00 10 <key-payload>` (with retry support)
 
 Notes:
 
-- For `kwp2000` and `uds`, transport is ISO-TP (`can-isotp`).
+- Transport uses ISO-TP (`can-isotp`).
 - `--adapter kdcan` currently exposes the extension boundary but requires wiring your concrete K/DCAN backend driver in `adapters.py`.
 - If `--channel` is omitted with `--adapter python-can --interface gs_usb`, the first detected gs_usb channel is used.
 
@@ -115,7 +115,6 @@ cfg = DiagClientConfig(
   adapter="python-can",
   interface="gs_usb",
   bitrate=500000,
-  protocol="kwp2000",
   tx_id=0x6F1,
   rx_id=0x612,
   isotp_addressing="extended",
