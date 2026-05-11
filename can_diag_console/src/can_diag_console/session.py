@@ -10,7 +10,7 @@ from diag_filter import FilterEngine, GenericMessage
 
 from .adapters import BusAdapter, build_adapter, settings_from_args
 from .defs_adapter import DefsParser, build_defs_parser
-from .protocols import fmt_hex
+from .hex_utils import fmt_hex
 from .transport import DiagTransport, build_transport_with_options
 
 
@@ -135,7 +135,6 @@ class DiagnosticSession:
 
         bus = self._adapter.open_bus()
         self._transport = build_transport_with_options(
-            protocol=self._args.protocol,
             bus=bus,
             tx_id=self._args.tx_id,
             rx_id=self._args.rx_id,
@@ -150,10 +149,6 @@ class DiagnosticSession:
 
     def set_rx_id(self, rx_id: int) -> None:
         self._args.rx_id = rx_id
-        self.rebuild_transport()
-
-    def set_protocol(self, protocol: str) -> None:
-        self._args.protocol = protocol
         self.rebuild_transport()
 
     def set_defs(self, defs_file: str) -> None:

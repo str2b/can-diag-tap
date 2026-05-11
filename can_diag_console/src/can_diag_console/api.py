@@ -9,8 +9,8 @@ from diag_filter import FilterEngine, GenericMessage
 
 from .adapters import AdapterSettings, build_adapter
 from .defs_adapter import DefsParser, build_defs_parser
+from .hex_utils import parse_hex_bytes
 from .memory_read import KwpMemoryReader, MemoryReadOptions, MemoryReadResult, export_srec
-from .protocols import parse_hex_bytes
 from .transport import build_transport_with_options, DiagTransport
 
 
@@ -22,7 +22,6 @@ class DiagClientConfig:
     bitrate: int = 500000
     adapter_options: dict[str, Any] = field(default_factory=dict)
 
-    protocol: str = "kwp2000"
     tx_id: int = 0x6F1
     rx_id: int = 0x612
     isotp_addressing: str = "extended"
@@ -73,7 +72,6 @@ class DiagClient:
         if self._transport is None:
             bus = self._adapter.open_bus()
             self._transport = build_transport_with_options(
-                protocol=self._config.protocol,
                 bus=bus,
                 tx_id=self._config.tx_id,
                 rx_id=self._config.rx_id,

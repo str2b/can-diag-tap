@@ -7,12 +7,11 @@ import sys
 from .adapters import register_adapter
 from .console import DiagnosticConsole
 from .extensions import load_adapter_plugins
-from .protocols import DiagProtocol
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Interactive CAN diagnostic console for KWP2000 / UDS"
+        description="Interactive CAN diagnostic console"
     )
     parser.add_argument(
         "--adapter",
@@ -45,7 +44,6 @@ def build_parser() -> argparse.ArgumentParser:
         "--adapter-options",
         help="Optional JSON object with adapter-specific settings for future backends",
     )
-    parser.add_argument("--protocol", choices=[p.value for p in DiagProtocol], default=DiagProtocol.UDS.value)
     parser.add_argument("--tx-id", type=lambda x: int(x, 0), help="Tester-to-ECU CAN frame ID")
     parser.add_argument("--rx-id", type=lambda x: int(x, 0), help="ECU-to-Tester CAN frame ID")
     parser.add_argument(

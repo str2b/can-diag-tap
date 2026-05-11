@@ -1,4 +1,4 @@
-from can_diag_console.protocols import parse_hex_bytes
+from can_diag_console.hex_utils import parse_hex_bytes
 
 
 def test_parse_hex_bytes_space_separated() -> None:

@@ -4,6 +4,10 @@ import argparse
 import logging
 import threading
 
+from prompt_toolkit import PromptSession
+from prompt_toolkit.history import InMemoryHistory
+from prompt_toolkit.patch_stdout import patch_stdout
+
 from .commands import CommandProcessor
 from .extensions import load_command_plugins
 from .session import DiagnosticSession
@@ -32,7 +36,7 @@ class DiagnosticConsole:
 
     def _print(self, line: str) -> None:
         with self._stdout_lock:
-            LOGGER.info(line)
+            print(f"[{LOGGER.name}] {line}")
 
     def run(self) -> int:
         self._running = True
@@ -42,7 +46,7 @@ class DiagnosticConsole:
         line = (
             f"adapter={args.adapter} interface={args.interface} "
             f"channel={args.channel} bitrate={args.bitrate} "
-            f"proto={args.protocol} can_tx=0x{args.tx_id:X} can_rx=0x{args.rx_id:X} "
+            f"can_tx=0x{args.tx_id:X} can_rx=0x{args.rx_id:X} "
             f"isotp={args.isotp_addressing}"
         )
         if args.isotp_addressing == "extended":
@@ -54,20 +58,25 @@ class DiagnosticConsole:
             self._print(f"defs={self._session.defs_file} ({status})")
 
         self._session.start()
+        _prompt = PromptSession(history=InMemoryHistory())
 
         try:
-            while self._running:
-                line = input("> ")
-                if not line.strip():
-                    continue
-                if line.startswith(":"):
+            with patch_stdout():
+                while self._running:
                     try:
-                        self._commands.execute(line)
-                    except Exception as exc:  # pylint: disable=broad-except
-                        self._print(f"Error: {exc}")
-                    continue
+                        line = _prompt.prompt("> ")
+                    except EOFError:
+                        break
+                    if not line.strip():
+                        continue
+                    if line.startswith(":"):
+                        try:
+                            self._commands.execute(line)
+                        except Exception as exc:  # pylint: disable=broad-except
+                            self._print(f"Error: {exc}")
+                        continue
 
-                self._print("Input must be a command (start with ':'). Use :help")
+                    self._print("Input must be a command (start with ':'). Use :help")
         except KeyboardInterrupt:
             self._print("Interrupted.")
         finally:

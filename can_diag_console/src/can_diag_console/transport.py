@@ -24,7 +24,7 @@ class DiagTransport(ABC):
 
 
 class IsotpDiagTransport(DiagTransport):
-    """ISO-TP transport used by UDS and KWP2000 over CAN."""
+    """ISO-TP transport for diagnostic payloads over CAN."""
 
     def __init__(
         self,
@@ -93,7 +93,6 @@ class IsotpDiagTransport(DiagTransport):
 
 
 def build_transport_with_options(
-    protocol: str,
     bus: can.BusABC,
     tx_id: int,
     rx_id: int,
@@ -102,13 +101,11 @@ def build_transport_with_options(
     source_address: int | None = None,
     target_address: int | None = None,
 ) -> DiagTransport:
-    if protocol in {"kwp2000", "uds"}:
-        return IsotpDiagTransport(
-            bus=bus,
-            tx_id=tx_id,
-            rx_id=rx_id,
-            isotp_addressing=isotp_addressing,
-            source_address=source_address,
-            target_address=target_address,
-        )
-    raise ValueError(f"Unsupported protocol: {protocol}")
+    return IsotpDiagTransport(
+        bus=bus,
+        tx_id=tx_id,
+        rx_id=rx_id,
+        isotp_addressing=isotp_addressing,
+        source_address=source_address,
+        target_address=target_address,
+    )

@@ -74,7 +74,7 @@ def test_tp_command_sends_payload() -> None:
     )
 
     assert proc.execute(":tp 3e 01") is True
-    assert sess.sent == [("TP", bytes([0x3E, 0x01]))]
+    assert sess.sent == [("TX", bytes([0x3E, 0x01]))]
 
 
 def test_kwp_tp_enable_and_disable() -> None:
