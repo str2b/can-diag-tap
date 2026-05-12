@@ -330,6 +330,16 @@ class ISOTPReassembler:
             return f"(0x{key[0]:X}, 0x{key[1]:X})"
         return f"0x{key:X}"
 
+    @staticmethod
+    def _fmt_partial_payload(data: bytearray, max_len: int = 16) -> str:
+        if not data:
+            return "<empty>"
+        clipped = bytes(data[:max_len])
+        hex_part = " ".join(f"{b:02X}" for b in clipped)
+        if len(data) > max_len:
+            return f"{hex_part} ..."
+        return hex_part
+
     def _evict_stale(self, timestamp: float):
         """Remove sessions that have exceeded the inactivity timeout."""
         if self.session_timeout <= 0:
@@ -337,9 +347,13 @@ class ISOTPReassembler:
         stale = [k for k, v in self._sessions.items()
                  if timestamp - v["started"] > self.session_timeout]
         for k in stale:
+            sess = self._sessions[k]
+            partial = self._fmt_partial_payload(sess["data"])
+            got = len(sess["data"])
+            direction = sess["can_frames"][0][1] if sess["can_frames"] else "?"
             logging.getLogger("cdt.isotp").warning(
-                "Dropped ISOTP session on %s: timeout exceeded (expected %d bytes)",
-                self._fmt_key(k), self._sessions[k]['dl']
+                "Dropped ISOTP session on %s dir=%s: timeout exceeded (expected %d bytes, got %d, partial=%s)",
+                self._fmt_key(k), direction, sess["dl"], got, partial
             )
             del self._sessions[k]
 
