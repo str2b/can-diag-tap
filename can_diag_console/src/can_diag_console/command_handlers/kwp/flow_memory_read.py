@@ -3,8 +3,8 @@ from __future__ import annotations
 import sys
 import time
 
-from ..memory_read import KwpMemoryReader, MemoryReadOptions, export_srec
-from .base import CommandContext, CommandSpec
+from ...memory_read import KwpMemoryReader, MemoryReadOptions, export_srec
+from ..base import CommandContext, CommandSpec
 
 
 class _ProgressBar:
@@ -39,7 +39,7 @@ class _ProgressBar:
 
 _SECTIONS = [
     (
-        ":kwp-rmem arguments:",
+        ":kwp-memread (aliases: :memread, :rmem, :kwp-rmem) arguments:",
         [
             "  <start>                   start address, hex (e.g. 0x80000000)",
             "  <end>                     end address, hex, inclusive (e.g. 0x80000EFF)",
@@ -55,12 +55,12 @@ _SECTIONS = [
 def _handle_kwp_read_memory(ctx: CommandContext, args: str) -> bool:
     rest = args.strip()
     if not rest:
-        ctx.emit("Usage: :kwp-rmem <start> <end> [chunk=0xF0] [type=0x00] [timeout=1.0] [srec=<path>]")
+        ctx.emit("Usage: :kwp-memread <start> <end> [chunk=0xF0] [type=0x00] [timeout=1.0] [srec=<path>]")
         return True
 
     tokens = rest.split()
     if len(tokens) < 2:
-        ctx.emit("Usage: :kwp-rmem <start> <end> [chunk=0xF0] [type=0x00] [timeout=1.0] [srec=<path>]")
+        ctx.emit("Usage: :kwp-memread <start> <end> [chunk=0xF0] [type=0x00] [timeout=1.0] [srec=<path>]")
         return True
 
     start = int(tokens[0], 0)
@@ -124,8 +124,9 @@ def _handle_kwp_read_memory(ctx: CommandContext, args: str) -> bool:
 
 def command_spec() -> CommandSpec:
     return CommandSpec(
-        name="kwp-rmem",
+        name="kwp-memread",
+        aliases=("memread", "rmem", "kwp-rmem"),
         handler=_handle_kwp_read_memory,
-        summary=":kwp-rmem <start> <end> [...]            read ECU memory range",
+        summary=":kwp-memread, :memread <start> <end> ... read ECU memory range in bulk",
         help_sections=_SECTIONS,
     )

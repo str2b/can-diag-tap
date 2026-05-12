@@ -6,8 +6,8 @@ from enum import Enum
 from typing import Callable
 import subprocess
 import sys
-from ..hex_utils import fmt_hex, parse_hex_bytes
-from .base import CommandContext, CommandSpec
+from ...hex_utils import fmt_hex, parse_hex_bytes
+from ..base import CommandContext, CommandSpec
 
 
 class AuthState(str, Enum):

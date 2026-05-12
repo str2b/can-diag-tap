@@ -4,6 +4,7 @@ from ..hex_utils import parse_hex_bytes
 from .base import CommandContext, CommandSpec
 
 
+
 def _handle_tp(ctx: CommandContext, args: str) -> bool:
     payload_text = args.strip()
     if not payload_text:
@@ -17,7 +18,8 @@ def _handle_tp(ctx: CommandContext, args: str) -> bool:
 
 def command_spec() -> CommandSpec:
     return CommandSpec(
-        name="tp",
+        name="raw",
+        aliases=("tp",),
         handler=_handle_tp,
-        summary=":tp <hex-bytes>                          send raw transport payload bytes",
+        summary=":raw, :tp <hex-bytes>                    send raw transport payload bytes",
     )

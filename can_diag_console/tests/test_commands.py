@@ -62,7 +62,22 @@ class _FakeSession:
         return
 
 
-def test_tp_command_sends_payload() -> None:
+def test_raw_command_sends_payload() -> None:
+    out = []
+    stopped = {"v": False}
+    sess = _FakeSession()
+
+    proc = CommandProcessor(
+        session=sess,
+        emit=out.append,
+        stop_console=lambda: stopped.__setitem__("v", True),
+    )
+
+    assert proc.execute(":raw 3e 01") is True
+    assert sess.sent == [("TX", bytes([0x3E, 0x01]))]
+
+
+def test_tp_alias_still_sends_payload() -> None:
     out = []
     stopped = {"v": False}
     sess = _FakeSession()
@@ -75,6 +90,21 @@ def test_tp_command_sends_payload() -> None:
 
     assert proc.execute(":tp 3e 01") is True
     assert sess.sent == [("TX", bytes([0x3E, 0x01]))]
+
+
+def test_kwp_diag_session_command() -> None:
+    out = []
+    sess = _FakeSession()
+    sess.scripted_responses = [bytes([0x50, 0x85])]
+
+    proc = CommandProcessor(
+        session=sess,
+        emit=out.append,
+        stop_console=lambda: None,
+    )
+
+    assert proc.execute(":kwp-diag-session programming") is True
+    assert sess.requests[0][0] == bytes([0x10, 0x85])
 
 
 def test_kwp_tp_enable_and_disable() -> None:
@@ -108,6 +138,21 @@ def test_kwp_rmem_command_requests_blocks() -> None:
 
     assert proc.execute(":kwp-rmem 0x1000 0x1008 chunk=0x04 type=0x00 timeout=0.1") is True
     # Two requests of size 4: [0x1000..0x1004), [0x1004..0x1008)
+    assert len(sess.requests) == 2
+    assert sess.requests[0][0][:1] == bytes([0x23])
+
+
+def test_kwp_memread_command_requests_blocks() -> None:
+    out = []
+    sess = _FakeSession()
+
+    proc = CommandProcessor(
+        session=sess,
+        emit=out.append,
+        stop_console=lambda: None,
+    )
+
+    assert proc.execute(":kwp-memread 0x1000 0x1008 chunk=0x04 type=0x00 timeout=0.1") is True
     assert len(sess.requests) == 2
     assert sess.requests[0][0][:1] == bytes([0x23])
 

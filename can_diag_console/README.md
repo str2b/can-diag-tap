@@ -78,21 +78,29 @@ can-diag-console --adapter python-can --interface gs_usb --adapter-options '{"di
 
 Built-in commands:
 
+**General:**
+
 | Command | Description |
 |---|---|
 | `:help` | Show available commands |
 | `:quit` | Exit the console |
 | `:businfo` | Print CAN bus and adapter info |
-| `:tp <hex bytes>` | Send a raw ISO-TP request and print the response |
-| `:kwp-tp <on\|off\|status\|toggle> [interval_s] [hex bytes]` | Manage periodic tester present |
-| `:kwp-rmem <start> <end> [chunk=0xF0] [type=0x00] [timeout=1.0] [srec=<path>]` | Read ECU memory over KWP (`0x23`) |
-| `:kwp-auth-sk [seed1=43444331] [retries=3] [delay=2.0] [timeout=2.0] [keyscript=<path>]` | Run KWP seed-key authentication |
 | `:tx <id>` | Change the TX CAN ID |
 | `:rx <id>` | Change the RX CAN ID |
 | `:defs <path>` | Load a diagnostic definitions JSON |
 | `:nodefs` | Unload the current definitions |
+| `:raw <hex bytes>` (alias `:tp`) | Send a raw ISO-TP payload bytes |
 
-#### :kwp-rmem
+**Supported KWP commands:**
+
+| Command | KWP service | Description |
+|---|---|---|
+| `:kwp-diag-session <default\|programming\|extended> [timeout=1.0]` | `0x10` | Start diagnostic session |
+| `:kwp-tp <on\|off\|status\|toggle> [interval_s] [hex bytes]` | `0x3E` | Manage periodic tester present |
+| `:kwp-memread <start> <end> [chunk=0xF0] [type=0x00] [timeout=1.0] [srec=<path>]` (aliases `:memread`, `:rmem`, `:kwp-rmem`) | `0x23` | Bulk-read ECU memory range |
+| `:kwp-auth-sk [seed1=43444331] [retries=3] [delay=2.0] [timeout=2.0] [keyscript=<path>]` | OEM routine flow | Full KWP seed-key authentication flow |
+
+#### :kwp-memread
 
 Reads ECU memory using KWP2000 `ReadMemoryByAddress` (`0x23`):
 
@@ -103,7 +111,7 @@ Reads ECU memory using KWP2000 `ReadMemoryByAddress` (`0x23`):
 Example:
 
 ```text
-:kwp-rmem 0x80000000 0x80000EFF chunk=0xF0 timeout=1.0 srec=./dump/live.srec
+:kwp-memread 0x80000000 0x80000EFF chunk=0xF0 timeout=1.0 srec=./dump/live.srec
 ```
 
 #### :kwp-auth-sk
