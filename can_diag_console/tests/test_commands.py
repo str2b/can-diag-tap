@@ -126,7 +126,7 @@ def test_kwp_tp_enable_and_disable() -> None:
     assert sess.tp["enabled"] is False
 
 
-def test_kwp_rmem_command_requests_blocks() -> None:
+def test_kwp_readmem_alias_requests_blocks() -> None:
     out = []
     sess = _FakeSession()
 
@@ -136,13 +136,13 @@ def test_kwp_rmem_command_requests_blocks() -> None:
         stop_console=lambda: None,
     )
 
-    assert proc.execute(":kwp-rmem 0x1000 0x1008 chunk=0x04 type=0x00 timeout=0.1") is True
+    assert proc.execute(":kwp-readmem 0x1000 0x1008 chunk=0x04 type=0x00 timeout=0.1") is True
     # Two requests of size 4: [0x1000..0x1004), [0x1004..0x1008)
     assert len(sess.requests) == 2
     assert sess.requests[0][0][:1] == bytes([0x23])
 
 
-def test_kwp_memread_command_requests_blocks() -> None:
+def test_kwp_dumpmem_command_requests_blocks() -> None:
     out = []
     sess = _FakeSession()
 
@@ -152,9 +152,56 @@ def test_kwp_memread_command_requests_blocks() -> None:
         stop_console=lambda: None,
     )
 
-    assert proc.execute(":kwp-memread 0x1000 0x1008 chunk=0x04 type=0x00 timeout=0.1") is True
+    assert proc.execute(":kwp-dumpmem 0x1000 0x1008 chunk=0x04 type=0x00 timeout=0.1") is True
     assert len(sess.requests) == 2
     assert sess.requests[0][0][:1] == bytes([0x23])
+
+
+def test_kwp_dumpmem_supports_start_plus_length_mode() -> None:
+    out = []
+    sess = _FakeSession()
+
+    proc = CommandProcessor(
+        session=sess,
+        emit=out.append,
+        stop_console=lambda: None,
+    )
+
+    assert proc.execute(":kwp-dumpmem 0x1000 0x08 mode=length chunk=0x04 type=0x00 timeout=0.1") is True
+    assert len(sess.requests) == 2
+    assert sess.requests[0][0][:1] == bytes([0x23])
+
+
+def test_writemem_builds_0x3d_payload_with_4byte_address() -> None:
+    out = []
+    sess = _FakeSession()
+    sess.scripted_responses = [bytes([0x7D])]
+
+    proc = CommandProcessor(
+        session=sess,
+        emit=out.append,
+        stop_console=lambda: None,
+    )
+
+    assert proc.execute(":kwp-writemem 0x80000010 DE AD BE EF type=0x00 timeout=0.1") is True
+    assert len(sess.requests) == 1
+    assert sess.requests[0][0] == bytes([0x3D, 0x80, 0x00, 0x00, 0x10, 0x00, 0x04, 0xDE, 0xAD, 0xBE, 0xEF])
+
+
+def test_writemem_rejects_payload_larger_than_0xfa() -> None:
+    out = []
+    sess = _FakeSession()
+
+    proc = CommandProcessor(
+        session=sess,
+        emit=out.append,
+        stop_console=lambda: None,
+    )
+
+    too_long = " ".join(["AA"] * 0xFB)
+    assert proc.execute(f":kwp-writemem 0x1000 {too_long}") is True
+    assert len(sess.requests) == 0
+    assert any("recordData length must be in range 0x01..0xFA" in line for line in out)
 
 
 def test_kwp_auth_sk_command_prompts_for_key(monkeypatch) -> None:

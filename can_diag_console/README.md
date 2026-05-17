@@ -97,21 +97,44 @@ Built-in commands:
 |---|---|---|
 | `:kwp-diag-session <default\|programming\|extended> [timeout=1.0]` | `0x10` | Start diagnostic session |
 | `:kwp-tp <on\|off\|status\|toggle> [interval_s] [hex bytes]` | `0x3E` | Manage periodic tester present |
-| `:kwp-memread <start> <end> [chunk=0xF0] [type=0x00] [timeout=1.0] [srec=<path>]` (aliases `:memread`, `:rmem`, `:kwp-rmem`) | `0x23` | Bulk-read ECU memory range |
+| `:kwp-dumpmem <start> <end> [chunk=0xF0] [type=0x00] [mode=range\|length] [timeout=1.0] [srec=<path>]` (aliases `:dumpmem`, `:kwp-readmem`, `:kwp-memread`, `:memread`, `:rmem`, `:kwp-rmem`) | `0x23` | Bulk-read ECU memory range |
+| `:kwp-writemem <address> <hex bytes...> [type=0x00] [timeout=1.0]` (alias `:writemem`) | `0x3D` | Write ECU memory using 4-byte address mode |
 | `:kwp-auth-sk [seed1=43444331] [retries=3] [delay=2.0] [timeout=2.0] [keyscript=<path>]` | OEM routine flow | Full KWP seed-key authentication flow |
 
-#### :kwp-memread
+#### :kwp-dumpmem
 
 Reads ECU memory using KWP2000 `ReadMemoryByAddress` (`0x23`):
 
-- Splits the address range into chunks (default `0xF0` bytes per request)
+- Supports two addressing modes:
+  - `mode=range` (default): `<start> <end>` where `end` is exclusive
+  - `mode=length`: `<start> <length>`
+- Splits the effective range into chunks (default `0xF0` bytes per request)
 - If a negative response is received, recursively bisects the range to isolate unreadable addresses
 - Continues reading remaining addresses; optionally exports all readable chunks to SREC using `hexrec`
 
 Example:
 
 ```text
-:kwp-memread 0x80000000 0x80000EFF chunk=0xF0 timeout=1.0 srec=./dump/live.srec
+:kwp-dumpmem 0x80000000 0x80000F00 chunk=0xF0 timeout=1.0 srec=./dump/live.srec
+:kwp-dumpmem 0x80000000 0x0F00 mode=length chunk=0xF0 timeout=1.0 srec=./dump/live.srec
+```
+
+#### :kwp-writemem
+
+Writes ECU memory using KWP2000 `WriteMemoryByAddress` (`0x3D`) in 4-byte address mode:
+
+- Request layout is:
+  - `0x3D`
+  - `memoryAddress` (32-bit, big-endian)
+  - `memoryTypeIdentifier` (`0x00..0xFF`, default `0x00`)
+  - `memorySize` (`0x01..0xFA`)
+  - `recordData`
+- `memorySize` is derived automatically from the provided data bytes.
+
+Example:
+
+```text
+:kwp-writemem 0x80000010 DE AD BE EF type=0x00 timeout=1.0
 ```
 
 #### :kwp-auth-sk
