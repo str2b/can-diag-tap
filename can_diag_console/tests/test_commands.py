@@ -204,6 +204,37 @@ def test_writemem_rejects_payload_larger_than_0xfa() -> None:
     assert any("recordData length must be in range 0x01..0xFA" in line for line in out)
 
 
+def test_erasemem_builds_0x31_0x02_payload_with_4byte_address_and_size() -> None:
+    out = []
+    sess = _FakeSession()
+    sess.scripted_responses = [bytes([0x71, 0x02])]
+
+    proc = CommandProcessor(
+        session=sess,
+        emit=out.append,
+        stop_console=lambda: None,
+    )
+
+    assert proc.execute(":kwp-erasemem 0x80000010 0x00001000 type=0x00 timeout=0.1") is True
+    assert len(sess.requests) == 1
+    assert sess.requests[0][0] == bytes([0x31, 0x02, 0x80, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x10, 0x00])
+
+
+def test_erasemem_rejects_out_of_range_size() -> None:
+    out = []
+    sess = _FakeSession()
+
+    proc = CommandProcessor(
+        session=sess,
+        emit=out.append,
+        stop_console=lambda: None,
+    )
+
+    assert proc.execute(":kwp-erasemem 0x1000 0x1_0000_0000") is True
+    assert len(sess.requests) == 0
+    assert any("size must fit in 4 bytes" in line for line in out)
+
+
 def test_kwp_auth_sk_command_prompts_for_key(monkeypatch) -> None:
     out = []
     sess = _FakeSession()

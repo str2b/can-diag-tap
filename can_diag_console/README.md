@@ -99,6 +99,7 @@ Built-in commands:
 | `:kwp-tp <on\|off\|status\|toggle> [interval_s] [hex bytes]` | `0x3E` | Manage periodic tester present |
 | `:kwp-dumpmem <start> <end> [chunk=0xF0] [type=0x00] [mode=range\|length] [timeout=1.0] [srec=<path>]` (aliases `:dumpmem`, `:kwp-readmem`, `:kwp-memread`, `:memread`, `:rmem`, `:kwp-rmem`) | `0x23` | Bulk-read ECU memory range |
 | `:kwp-writemem <address> <hex bytes...> [type=0x00] [timeout=1.0]` (alias `:writemem`) | `0x3D` | Write ECU memory using 4-byte address mode |
+| `:kwp-erasemem <address> <size> [type=0x00] [timeout=1.0]` (alias `:erasemem`) | `0x31 0x02` | RoutineControl erase memory using 4-byte address and size |
 | `:kwp-auth-sk [seed1=43444331] [retries=3] [delay=2.0] [timeout=2.0] [keyscript=<path>]` | OEM routine flow | Full KWP seed-key authentication flow |
 
 #### :kwp-dumpmem
@@ -135,6 +136,23 @@ Example:
 
 ```text
 :kwp-writemem 0x80000010 DE AD BE EF type=0x00 timeout=1.0
+```
+
+#### :kwp-erasemem
+
+Requests ECU memory erase via KWP2000 `RoutineControl` (`0x31 0x02`):
+
+- Request layout is:
+  - `0x31 0x02`
+  - `memoryAddress` (32-bit, big-endian)
+  - `memoryTypeIdentifier` (`0x00..0xFF`, default `0x00`)
+  - `memorySize` (32-bit, big-endian)
+- `memoryTypeIdentifier` is passed through as-is and not interpreted by the command.
+
+Example:
+
+```text
+:kwp-erasemem 0x80000000 0x00010000 type=0x00 timeout=1.0
 ```
 
 #### :kwp-auth-sk
